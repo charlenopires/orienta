@@ -4,8 +4,8 @@ import { ProtectedLayout } from "@/layouts/protected-layout"
 import { PublicLayout } from "@/layouts/public-layout"
 import { LoginPage } from "@/routes/login"
 import { DashboardPage, dashboardLoader } from "@/routes/dashboard"
-import { AlunosPage } from "@/routes/alunos"
-import { AvaliacoesPage } from "@/routes/avaliacoes"
+import { AlunosPage, alunosLoader } from "@/routes/alunos"
+import { AvaliacoesPage, avaliacoesLoader } from "@/routes/avaliacoes"
 import { HistoricoPage } from "@/routes/historico"
 import { PortalPage } from "@/routes/portal"
 
@@ -30,11 +30,13 @@ export const router = createBrowserRouter([
       {
         path: "alunos",
         element: <AlunosPage />,
+        loader: alunosLoader,
         handle: { title: "Alunos" },
       },
       {
         path: "avaliacoes",
         element: <AvaliacoesPage />,
+        loader: avaliacoesLoader,
         handle: { title: "Avaliações" },
       },
       {

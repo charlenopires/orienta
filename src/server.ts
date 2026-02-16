@@ -6,6 +6,8 @@ import { createToken, verifyToken } from "./lib/jwt"
 import type { JwtPayload } from "./lib/jwt"
 import { ORIENTADOR } from "./lib/auth-config"
 import bcrypt from "bcryptjs"
+import { students } from "./api/students"
+import { evaluations } from "./api/evaluations"
 
 type Env = {
   Variables: {
@@ -119,6 +121,9 @@ app.use("/api/dashboard/*", authMiddleware)
 app.use("/api/students/*", authMiddleware)
 app.use("/api/evaluations/*", authMiddleware)
 app.use("/api/ponderations/*", authMiddleware)
+
+app.route("/api/students", students)
+app.route("/api/evaluations", evaluations)
 
 app.get("/api/dashboard/stats", (c) => {
   return c.json({
