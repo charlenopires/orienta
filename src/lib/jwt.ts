@@ -16,9 +16,9 @@ export async function createToken(user: { id: string; name: string; email: strin
     email: user.email,
     exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24, // 24h
   }
-  return sign(payload, SECRET)
+  return sign(payload, SECRET, "HS256")
 }
 
 export async function verifyToken(token: string): Promise<JwtPayload> {
-  return verify(token, SECRET) as Promise<JwtPayload>
+  return verify(token, SECRET, "HS256") as Promise<JwtPayload>
 }

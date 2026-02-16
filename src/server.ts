@@ -72,7 +72,8 @@ app.get("/api/auth/me", async (c) => {
   try {
     const payload = await verifyToken(token)
     return c.json({ id: payload.sub, name: payload.name, email: payload.email })
-  } catch {
+  } catch (err) {
+    console.error("[auth/me] JWT verify failed:", err)
     return c.json({ error: "Unauthorized" }, 401)
   }
 })
