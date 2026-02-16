@@ -2,8 +2,10 @@ import { Hono } from "hono"
 import { cors } from "hono/cors"
 import { getCookie, setCookie, deleteCookie } from "hono/cookie"
 import { serveStatic } from "hono/bun"
-import { verifyToken } from "./lib/jwt"
+import { createToken, verifyToken } from "./lib/jwt"
 import type { JwtPayload } from "./lib/jwt"
+import { ORIENTADOR } from "./lib/auth-config"
+import bcrypt from "bcryptjs"
 
 type Env = {
   Variables: {
@@ -70,8 +72,40 @@ app.get("/api/auth/me", async (c) => {
 })
 
 app.post("/api/auth/login", async (c) => {
-  // Will be implemented in auth task with bcrypt validation
-  return c.json({ error: "Not implemented" }, 501)
+  const body = await c.req.json<{ email?: string; password?: string }>()
+
+  if (!body.email || !body.password) {
+    return c.json({ error: "Email e senha são obrigatórios" }, 400)
+  }
+
+  if (body.email !== ORIENTADOR.email) {
+    return c.json({ error: "Credenciais inválidas" }, 401)
+  }
+
+  const valid = await bcrypt.compare(body.password, ORIENTADOR.passwordHash)
+  if (!valid) {
+    return c.json({ error: "Credenciais inválidas" }, 401)
+  }
+
+  const token = await createToken({
+    id: ORIENTADOR.id,
+    name: ORIENTADOR.name,
+    email: ORIENTADOR.email,
+  })
+
+  setCookie(c, "auth_token", token, {
+    path: "/",
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "Lax",
+    maxAge: 60 * 60 * 24, // 24h
+  })
+
+  return c.json({
+    id: ORIENTADOR.id,
+    name: ORIENTADOR.name,
+    email: ORIENTADOR.email,
+  })
 })
 
 app.post("/api/auth/logout", (c) => {
