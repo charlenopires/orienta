@@ -34,6 +34,7 @@ export function StudentFormSheet({ open, onOpenChange, student, onSuccess }: Stu
       projectTopic: fd.get("projectTopic") as string,
       period: fd.get("period") as string,
       phone: (fd.get("phone") as string) || null,
+      pdfUrl: (fd.get("pdfUrl") as string) || null,
       notes: (fd.get("notes") as string) || null,
     }
 
@@ -90,6 +91,10 @@ export function StudentFormSheet({ open, onOpenChange, student, onSuccess }: Stu
           <div className="space-y-2">
             <Label htmlFor="period">Período *</Label>
             <Input id="period" name="period" required defaultValue={student?.period} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="pdfUrl">URL do PDF do Trabalho</Label>
+            <Input id="pdfUrl" name="pdfUrl" type="url" placeholder="https://..." defaultValue={student?.pdfUrl ?? ""} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="phone">Telefone</Label>

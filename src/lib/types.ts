@@ -8,6 +8,7 @@ export interface Student {
   projectTopic: string
   period: string
   phone: string | null
+  pdfUrl: string | null
   notes: string | null
   publicToken: string
   status: StudentStatus

@@ -60,6 +60,7 @@ students.post("/", async (c) => {
     projectTopic?: string
     period?: string
     phone?: string
+    pdfUrl?: string
     notes?: string
   }>()
 
@@ -76,6 +77,7 @@ students.post("/", async (c) => {
       projectTopic: body.projectTopic,
       period: body.period,
       phone: body.phone ?? null,
+      pdfUrl: body.pdfUrl ?? null,
       notes: body.notes ?? null,
     })
     .returning()
@@ -93,6 +95,7 @@ students.put("/:id", async (c) => {
     projectTopic?: string
     period?: string
     phone?: string
+    pdfUrl?: string
     notes?: string
     status?: "active" | "in_review" | "approved" | "inactive"
   }>()
@@ -106,6 +109,7 @@ students.put("/:id", async (c) => {
       ...(body.projectTopic !== undefined && { projectTopic: body.projectTopic }),
       ...(body.period !== undefined && { period: body.period }),
       ...(body.phone !== undefined && { phone: body.phone }),
+      ...(body.pdfUrl !== undefined && { pdfUrl: body.pdfUrl }),
       ...(body.notes !== undefined && { notes: body.notes }),
       ...(body.status !== undefined && { status: body.status }),
     })

@@ -32,6 +32,7 @@ export const opcStudents = pgTable("opc_students", {
   projectTopic: text("project_topic").notNull(),
   period: text("period").notNull(),
   phone: text("phone"),
+  pdfUrl: text("pdf_url"),
   notes: text("notes"),
   publicToken: uuid("public_token").defaultRandom().unique().notNull(),
   status: opcStudentStatus("status").default("active").notNull(),
