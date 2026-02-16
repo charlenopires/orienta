@@ -3,7 +3,7 @@ import { requireAuth } from "@/lib/auth"
 import { ProtectedLayout } from "@/layouts/protected-layout"
 import { PublicLayout } from "@/layouts/public-layout"
 import { LoginPage } from "@/routes/login"
-import { DashboardPage } from "@/routes/dashboard"
+import { DashboardPage, dashboardLoader } from "@/routes/dashboard"
 import { AlunosPage } from "@/routes/alunos"
 import { AvaliacoesPage } from "@/routes/avaliacoes"
 import { HistoricoPage } from "@/routes/historico"
@@ -21,10 +21,27 @@ export const router = createBrowserRouter([
     element: <ProtectedLayout />,
     loader: requireAuth,
     children: [
-      { path: "dashboard", element: <DashboardPage /> },
-      { path: "alunos", element: <AlunosPage /> },
-      { path: "avaliacoes", element: <AvaliacoesPage /> },
-      { path: "historico", element: <HistoricoPage /> },
+      {
+        path: "dashboard",
+        element: <DashboardPage />,
+        loader: dashboardLoader,
+        handle: { title: "Dashboard" },
+      },
+      {
+        path: "alunos",
+        element: <AlunosPage />,
+        handle: { title: "Alunos" },
+      },
+      {
+        path: "avaliacoes",
+        element: <AvaliacoesPage />,
+        handle: { title: "Avaliações" },
+      },
+      {
+        path: "historico",
+        element: <HistoricoPage />,
+        handle: { title: "Histórico" },
+      },
     ],
   },
 ])
