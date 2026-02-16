@@ -8,6 +8,9 @@ import { ORIENTADOR } from "./lib/auth-config"
 import bcrypt from "bcryptjs"
 import { students } from "./api/students"
 import { evaluations } from "./api/evaluations"
+import { db } from "./lib/db"
+import { opcStudents, opcEvaluations, opcPonderations, opcPonderationItems } from "./lib/db/opc-schema"
+import { count, eq, sql, gte, avg, desc } from "drizzle-orm"
 
 type Env = {
   Variables: {
@@ -130,49 +133,59 @@ app.use("/api/ponderations/*", authMiddleware)
 app.route("/api/students", students)
 app.route("/api/evaluations", evaluations)
 
-app.get("/api/dashboard/stats", (c) => {
+app.get("/api/dashboard/stats", async (c) => {
+  const now = new Date()
+  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+
+  const [totalAlunosResult, avaliacoesResult, ponderacoesMesResult, recentPonderacoes] = await Promise.all([
+    db.select({ total: count() }).from(opcStudents),
+    db.select({ total: count() }).from(opcEvaluations),
+    db.select({ total: count() }).from(opcPonderations).where(gte(opcPonderations.createdAt, firstOfMonth)),
+    db
+      .select({
+        id: opcPonderations.id,
+        alunoNome: opcStudents.name,
+        data: opcPonderations.createdAt,
+        scorePercent: opcPonderations.scorePercent,
+      })
+      .from(opcPonderations)
+      .innerJoin(opcStudents, eq(opcPonderations.studentId, opcStudents.id))
+      .orderBy(desc(opcPonderations.createdAt))
+      .limit(5),
+  ])
+
+  // For each recent ponderation, count positive/negative items
+  const ultimasPonderacoes = await Promise.all(
+    recentPonderacoes.map(async (p) => {
+      const items = await db
+        .select({ answer: opcPonderationItems.answer })
+        .from(opcPonderationItems)
+        .where(eq(opcPonderationItems.ponderationId, p.id))
+
+      const positivos = items.filter((i) => i.answer).length
+      const negativos = items.filter((i) => !i.answer).length
+
+      return {
+        id: p.id,
+        alunoNome: p.alunoNome,
+        data: p.data.toISOString(),
+        positivos,
+        negativos,
+      }
+    }),
+  )
+
+  // Average conformidade from all ponderations
+  const avgResult = await db
+    .select({ avg: avg(opcPonderations.scorePercent) })
+    .from(opcPonderations)
+
   return c.json({
-    totalAlunos: 12,
-    avaliacoesRealizadas: 34,
-    ponderacoesMes: 8,
-    mediaConformidade: 72,
-    ultimasPonderacoes: [
-      {
-        id: "1",
-        alunoNome: "Maria Silva",
-        data: "2026-02-14T10:30:00Z",
-        positivos: 38,
-        negativos: 16,
-      },
-      {
-        id: "2",
-        alunoNome: "João Santos",
-        data: "2026-02-13T14:15:00Z",
-        positivos: 42,
-        negativos: 12,
-      },
-      {
-        id: "3",
-        alunoNome: "Ana Costa",
-        data: "2026-02-12T09:00:00Z",
-        positivos: 30,
-        negativos: 24,
-      },
-      {
-        id: "4",
-        alunoNome: "Pedro Oliveira",
-        data: "2026-02-10T16:45:00Z",
-        positivos: 45,
-        negativos: 9,
-      },
-      {
-        id: "5",
-        alunoNome: "Carla Mendes",
-        data: "2026-02-08T11:20:00Z",
-        positivos: 35,
-        negativos: 19,
-      },
-    ],
+    totalAlunos: totalAlunosResult[0]?.total ?? 0,
+    avaliacoesRealizadas: avaliacoesResult[0]?.total ?? 0,
+    ponderacoesMes: ponderacoesMesResult[0]?.total ?? 0,
+    mediaConformidade: Math.round(Number(avgResult[0]?.avg ?? 0)),
+    ultimasPonderacoes,
   })
 })
 

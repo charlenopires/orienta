@@ -23,6 +23,8 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-info: var(--info);
@@ -45,6 +47,8 @@
   --border: #4B4B78;
   --input: #4B4B78;
   --ring: #6366F1;
+  --popover: #1E1E3F;
+  --popover-foreground: #FFFFFF;
   --success: #10B981;
   --warning: #F59E0B;
   --info: #3B82F6;
