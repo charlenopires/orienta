@@ -73,8 +73,14 @@ export function AlunosPage() {
     }
   }
 
-  function handleCopyLink(token: string) {
-    const url = `${window.location.origin}/aluno/${token}`
+  function handleCopyLink(name: string, token: string) {
+    const slug = name
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "")
+    const url = `${window.location.origin}/aluno/${slug}-${token}`
     navigator.clipboard.writeText(url)
     toast.success("Link copiado!")
   }
@@ -138,7 +144,7 @@ export function AlunosPage() {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8"
-                        onClick={() => handleCopyLink(student.publicToken)}
+                        onClick={() => handleCopyLink(student.name, student.publicToken)}
                         title="Copiar link público"
                       >
                         <Link2 className="h-4 w-4" />

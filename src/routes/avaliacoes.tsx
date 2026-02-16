@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useRef } from "react"
-import { useLoaderData, useSearchParams } from "react-router"
+import { useLoaderData, useSearchParams, Link } from "react-router"
 import { toast } from "sonner"
-import { ChevronLeft, ChevronRight, Save, CheckCircle2 } from "lucide-react"
+import { ChevronLeft, ChevronRight, Save, CheckCircle2, Plus, ArrowLeft, Eye } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
@@ -11,25 +11,44 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import { StudentCombobox } from "@/components/student-combobox"
 import { ChecklistItem } from "@/components/checklist-item"
 import { checklistSections, TOTAL_ITEMS } from "@/lib/checklist-data"
-import type { Student, EvaluationItemState } from "@/lib/types"
+import type { Student, EvaluationItemState, PonderationListItem } from "@/lib/types"
 
 interface AvaliacoesLoaderData {
   students: Student[]
   preselectedStudentId: string | null
+  ponderations: PonderationListItem[]
 }
 
 export async function avaliacoesLoader({ request }: { request: Request }): Promise<AvaliacoesLoaderData> {
   const url = new URL(request.url)
   const studentId = url.searchParams.get("studentId")
 
-  const res = await fetch("/api/students?limit=100", { credentials: "include" })
-  if (!res.ok) throw new Error("Failed to load students")
-  const { data } = await res.json()
+  const [studentsRes, ponderationsRes] = await Promise.all([
+    fetch("/api/students?limit=100", { credentials: "include" }),
+    fetch("/api/ponderations", { credentials: "include" }),
+  ])
 
-  return { students: data, preselectedStudentId: studentId }
+  if (!studentsRes.ok) throw new Error("Failed to load students")
+  const { data: students } = await studentsRes.json()
+
+  let ponderations: PonderationListItem[] = []
+  if (ponderationsRes.ok) {
+    const { data } = await ponderationsRes.json()
+    ponderations = data
+  }
+
+  return { students, preselectedStudentId: studentId, ponderations }
 }
 
 function buildInitialItems(): EvaluationItemState[] {
@@ -43,8 +62,100 @@ function buildInitialItems(): EvaluationItemState[] {
   )
 }
 
-export function AvaliacoesPage() {
-  const { students, preselectedStudentId } = useLoaderData() as AvaliacoesLoaderData
+const statusLabels: Record<string, string> = {
+  bom: "Bom",
+  atencao: "Atenção",
+  critico: "Crítico",
+}
+
+const statusVariants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+  bom: "default",
+  atencao: "secondary",
+  critico: "destructive",
+}
+
+function PonderationsList({
+  ponderations,
+  onNewEvaluation,
+}: {
+  ponderations: PonderationListItem[]
+  onNewEvaluation: () => void
+}) {
+  return (
+    <div className="space-y-4 max-w-4xl">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold">Avaliações Realizadas</h2>
+        <Button onClick={onNewEvaluation}>
+          <Plus className="mr-2 h-4 w-4" />
+          Nova Avaliação
+        </Button>
+      </div>
+
+      {ponderations.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-border p-8 text-center">
+          <p className="text-muted-foreground">Nenhuma avaliação realizada ainda.</p>
+          <Button variant="outline" className="mt-4" onClick={onNewEvaluation}>
+            <Plus className="mr-2 h-4 w-4" />
+            Criar primeira avaliação
+          </Button>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Aluno</TableHead>
+                <TableHead>Data</TableHead>
+                <TableHead>Score</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="w-[80px]" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {ponderations.map((p) => (
+                <TableRow key={p.id}>
+                  <TableCell className="font-medium">{p.studentName}</TableCell>
+                  <TableCell>
+                    {new Date(p.createdAt).toLocaleDateString("pt-BR", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </TableCell>
+                  <TableCell>{p.scorePercent}%</TableCell>
+                  <TableCell>
+                    <Badge variant={statusVariants[p.statusGeneral] ?? "outline"}>
+                      {statusLabels[p.statusGeneral] ?? p.statusGeneral}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Button variant="ghost" size="sm" asChild>
+                      <Link to={`/ponderacoes/${p.id}`}>
+                        <Eye className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ChecklistForm({
+  students,
+  preselectedStudentId,
+  onBack,
+}: {
+  students: Student[]
+  preselectedStudentId: string | null
+  onBack: () => void
+}) {
   const [searchParams] = useSearchParams()
 
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(
@@ -65,7 +176,6 @@ export function AvaliacoesPage() {
     )
   }, [])
 
-  // Progress calculations
   const progress = useMemo(() => {
     const answered = items.filter((i) => i.answer !== null).length
     const totalPercent = Math.round((answered / TOTAL_ITEMS) * 100)
@@ -138,7 +248,6 @@ export function AvaliacoesPage() {
       return
     }
 
-    // Client-side validation
     const unanswered = items.filter((i) => i.answer === null)
     if (unanswered.length > 0) {
       const sectionIds = [...new Set(unanswered.map((i) => i.sectionId))]
@@ -163,7 +272,6 @@ export function AvaliacoesPage() {
 
     setFinalizing(true)
     try {
-      // Save first if not saved yet
       let currentEvalId = evaluationId
       if (!currentEvalId) {
         const saveRes = await fetch("/api/evaluations", {
@@ -180,7 +288,6 @@ export function AvaliacoesPage() {
         currentEvalId = saved.id
         setEvaluationId(saved.id)
       } else {
-        // Update draft before finalizing
         await fetch(`/api/evaluations/${currentEvalId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -205,11 +312,7 @@ export function AvaliacoesPage() {
         `Avaliação finalizada! Score: ${result.ponderation.scorePercent}% (${result.ponderation.positivos} positivos, ${result.ponderation.negativos} negativos)`,
       )
 
-      // Reset form
-      setItems(buildInitialItems())
-      setEvaluationId(null)
-      setSelectedStudentId(null)
-      setOpenSections([checklistSections[0].id])
+      onBack()
     } catch {
       toast.error("Erro ao conectar com o servidor")
     } finally {
@@ -225,7 +328,6 @@ export function AvaliacoesPage() {
     const targetId = checklistSections[targetIdx].id
     setOpenSections([targetId])
 
-    // Scroll to section after a tick for DOM update
     requestAnimationFrame(() => {
       const el = sectionRefs.current[targetId]
       if (el) {
@@ -236,6 +338,11 @@ export function AvaliacoesPage() {
 
   return (
     <div className="space-y-6 max-w-4xl">
+      <Button variant="ghost" onClick={onBack}>
+        <ArrowLeft className="mr-2 h-4 w-4" />
+        Voltar para lista
+      </Button>
+
       {/* Student selector */}
       <div className="space-y-2">
         <label className="text-sm font-medium">Aluno</label>
@@ -348,5 +455,39 @@ export function AvaliacoesPage() {
         </Button>
       </div>
     </div>
+  )
+}
+
+export function AvaliacoesPage() {
+  const { students, preselectedStudentId, ponderations } = useLoaderData() as AvaliacoesLoaderData
+  const [mode, setMode] = useState<"list" | "form">(
+    preselectedStudentId ? "form" : "list",
+  )
+  const [listData, setListData] = useState<PonderationListItem[]>(ponderations)
+
+  function handleBackToList() {
+    // Re-fetch ponderations to get the latest data
+    fetch("/api/ponderations", { credentials: "include" })
+      .then((res) => res.json())
+      .then(({ data }) => setListData(data))
+      .catch(() => {})
+    setMode("list")
+  }
+
+  if (mode === "form") {
+    return (
+      <ChecklistForm
+        students={students}
+        preselectedStudentId={preselectedStudentId}
+        onBack={handleBackToList}
+      />
+    )
+  }
+
+  return (
+    <PonderationsList
+      ponderations={listData}
+      onNewEvaluation={() => setMode("form")}
+    />
   )
 }

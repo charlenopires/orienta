@@ -8,9 +8,12 @@ import { ORIENTADOR } from "./lib/auth-config"
 import bcrypt from "bcryptjs"
 import { students } from "./api/students"
 import { evaluations } from "./api/evaluations"
+import { ponderations } from "./api/ponderations"
 import { db } from "./lib/db"
-import { opcStudents, opcEvaluations, opcPonderations, opcPonderationItems } from "./lib/db/opc-schema"
+import { opcStudents, opcEvaluations, opcPonderations, opcPonderationItems, opcAiTips } from "./lib/db/opc-schema"
 import { count, eq, sql, gte, avg, desc } from "drizzle-orm"
+import { checklistSections } from "./lib/checklist-data"
+import type { PonderationDetailSection } from "./lib/types"
 
 type Env = {
   Variables: {
@@ -132,6 +135,7 @@ app.use("/api/ponderations/*", authMiddleware)
 
 app.route("/api/students", students)
 app.route("/api/evaluations", evaluations)
+app.route("/api/ponderations", ponderations)
 
 app.get("/api/dashboard/stats", async (c) => {
   const now = new Date()
@@ -191,9 +195,114 @@ app.get("/api/dashboard/stats", async (c) => {
 
 // ── Public API routes (student portal) ──
 
-app.get("/api/portal/:token", (c) => {
-  // Will be implemented in portal task
-  return c.json({ error: "Not implemented" }, 501)
+app.get("/api/portal/:token", async (c) => {
+  const token = c.req.param("token")
+
+  const [student] = await db
+    .select({
+      id: opcStudents.id,
+      name: opcStudents.name,
+      course: opcStudents.course,
+      projectTopic: opcStudents.projectTopic,
+    })
+    .from(opcStudents)
+    .where(eq(opcStudents.publicToken, token))
+
+  if (!student) {
+    return c.json({ error: "Aluno não encontrado" }, 404)
+  }
+
+  const ponderationRows = await db
+    .select({
+      id: opcPonderations.id,
+      scorePercent: opcPonderations.scorePercent,
+      statusGeneral: opcPonderations.statusGeneral,
+      createdAt: opcPonderations.createdAt,
+    })
+    .from(opcPonderations)
+    .where(eq(opcPonderations.studentId, student.id))
+    .orderBy(desc(opcPonderations.createdAt))
+
+  const ponderationsResult = await Promise.all(
+    ponderationRows.map(async (p) => {
+      const items = await db
+        .select({
+          id: opcPonderationItems.id,
+          sectionId: opcPonderationItems.sectionId,
+          itemId: opcPonderationItems.itemId,
+          question: opcPonderationItems.question,
+          answer: opcPonderationItems.answer,
+          observation: opcPonderationItems.observation,
+        })
+        .from(opcPonderationItems)
+        .where(eq(opcPonderationItems.ponderationId, p.id))
+
+      // Get AI tips for all items
+      const tipsByItemId: Record<string, { id: string; diagnosis: string; howToFix: string; practicalExample: string | null; isFallback: boolean }> = {}
+      for (const item of items) {
+        const [tip] = await db
+          .select()
+          .from(opcAiTips)
+          .where(eq(opcAiTips.ponderationItemId, item.id))
+        if (tip) {
+          tipsByItemId[item.id] = {
+            id: tip.id,
+            diagnosis: tip.diagnosis,
+            howToFix: tip.howToFix,
+            practicalExample: tip.practicalExample,
+            isFallback: tip.isFallback,
+          }
+        }
+      }
+
+      const naoItemsMap = new Map(items.map((i) => [`${i.sectionId}:${i.itemId}`, i]))
+
+      const sections: PonderationDetailSection[] = checklistSections.map((section) => ({
+        sectionId: section.id,
+        sectionTitle: section.title,
+        items: section.items.map((item) => {
+          const naoItem = naoItemsMap.get(`${section.id}:${item.id}`)
+          if (naoItem) {
+            return {
+              id: naoItem.id,
+              sectionId: section.id,
+              itemId: item.id,
+              question: item.question,
+              answer: false,
+              observation: naoItem.observation,
+              aiTip: tipsByItemId[naoItem.id] ?? null,
+            }
+          }
+          return {
+            id: `sim-${section.id}-${item.id}`,
+            sectionId: section.id,
+            itemId: item.id,
+            question: item.question,
+            answer: true,
+            observation: null,
+            aiTip: null,
+          }
+        }),
+      }))
+
+      return {
+        id: p.id,
+        scorePercent: p.scorePercent,
+        statusGeneral: p.statusGeneral,
+        createdAt: p.createdAt.toISOString(),
+        sections,
+      }
+    }),
+  )
+
+  return c.json({
+    student: {
+      name: student.name,
+      course: student.course,
+      projectTopic: student.projectTopic,
+    },
+    ponderations: ponderationsResult,
+  })
 })
 
 // ── SPA static serving ──

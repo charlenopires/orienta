@@ -6,6 +6,7 @@ import { LoginPage } from "@/routes/login"
 import { DashboardPage, dashboardLoader } from "@/routes/dashboard"
 import { AlunosPage, alunosLoader } from "@/routes/alunos"
 import { AvaliacoesPage, avaliacoesLoader } from "@/routes/avaliacoes"
+import { PonderacaoDetalhePage, ponderacaoDetalheLoader } from "@/routes/ponderacao-detalhe"
 import { HistoricoPage } from "@/routes/historico"
 import { PortalPage } from "@/routes/portal"
 
@@ -38,6 +39,12 @@ export const router = createBrowserRouter([
         element: <AvaliacoesPage />,
         loader: avaliacoesLoader,
         handle: { title: "Avaliações" },
+      },
+      {
+        path: "ponderacoes/:id",
+        element: <PonderacaoDetalhePage />,
+        loader: ponderacaoDetalheLoader,
+        handle: { title: "Detalhe da Ponderação" },
       },
       {
         path: "historico",

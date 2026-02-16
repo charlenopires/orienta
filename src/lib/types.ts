@@ -58,3 +58,65 @@ export interface Evaluation {
   createdAt: string
   updatedAt: string
 }
+
+// AI Tips
+export interface AiTip {
+  id: string
+  diagnosis: string
+  howToFix: string
+  practicalExample: string | null
+  isFallback: boolean
+}
+
+// Ponderation detail
+export interface PonderationDetailItem {
+  id: string
+  sectionId: string
+  itemId: string
+  question: string
+  answer: boolean
+  observation: string | null
+  aiTip: AiTip | null
+}
+
+export interface PonderationDetailSection {
+  sectionId: string
+  sectionTitle: string
+  items: PonderationDetailItem[]
+}
+
+export interface PonderationDetail {
+  id: string
+  studentName: string
+  studentCourse: string
+  studentProjectTopic: string
+  scorePercent: number
+  statusGeneral: "bom" | "atencao" | "critico"
+  createdAt: string
+  sections: PonderationDetailSection[]
+}
+
+// Ponderation list
+export interface PonderationListItem {
+  id: string
+  studentName: string
+  scorePercent: number
+  statusGeneral: "bom" | "atencao" | "critico"
+  createdAt: string
+}
+
+// Student portal
+export interface PortalData {
+  student: {
+    name: string
+    course: string
+    projectTopic: string
+  }
+  ponderations: {
+    id: string
+    scorePercent: number
+    statusGeneral: "bom" | "atencao" | "critico"
+    createdAt: string
+    sections: PonderationDetailSection[]
+  }[]
+}

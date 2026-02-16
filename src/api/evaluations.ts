@@ -8,6 +8,7 @@ import {
   opcStudents,
 } from "../lib/db/opc-schema"
 import { checklistSections, TOTAL_ITEMS } from "../lib/checklist-data"
+import { generateAiTipsForPonderation } from "../lib/ai-tips"
 
 interface EvaluationItemPayload {
   sectionId: string
@@ -30,8 +31,17 @@ evaluations.get("/", async (c) => {
   const where = studentId ? eq(opcEvaluations.studentId, studentId) : undefined
 
   const rows = await db
-    .select()
+    .select({
+      id: opcEvaluations.id,
+      studentId: opcEvaluations.studentId,
+      studentName: opcStudents.name,
+      status: opcEvaluations.status,
+      data: opcEvaluations.data,
+      createdAt: opcEvaluations.createdAt,
+      updatedAt: opcEvaluations.updatedAt,
+    })
     .from(opcEvaluations)
+    .innerJoin(opcStudents, eq(opcEvaluations.studentId, opcStudents.id))
     .where(where)
     .orderBy(desc(opcEvaluations.createdAt))
     .limit(50)
@@ -216,6 +226,13 @@ evaluations.post("/:id/finalize", async (c) => {
     .update(opcStudents)
     .set({ status: "in_review" })
     .where(eq(opcStudents.id, evaluation.studentId))
+
+  // Fire-and-forget AI tips generation
+  if (ponderationItemsData.length > 0) {
+    generateAiTipsForPonderation(ponderation.id).catch((err) => {
+      console.error("[ai-tips] Background generation failed:", err)
+    })
+  }
 
   return c.json({
     ponderation: {
