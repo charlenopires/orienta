@@ -1,0 +1,9 @@
+node_modules
+dist
+.git
+.claude
+.cwa
+.env
+.env.local
+*.md
+drizzle/opc-migrations

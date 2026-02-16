@@ -1,36 +1,90 @@
 import { Hono } from "hono"
 import { cors } from "hono/cors"
+import { getCookie, setCookie, deleteCookie } from "hono/cookie"
 import { serveStatic } from "hono/bun"
+import { verifyToken } from "./lib/jwt"
+import type { JwtPayload } from "./lib/jwt"
 
-const app = new Hono()
+type Env = {
+  Variables: {
+    user: { id: string; name: string; email: string }
+  }
+}
+
+const app = new Hono<Env>()
+
+// ── CORS ──
 
 app.use(
   "/api/*",
   cors({
-    origin: "http://localhost:5173",
+    origin: process.env.NODE_ENV === "production"
+      ? (process.env.APP_URL ?? "")
+      : "http://localhost:5173",
     credentials: true,
   }),
 )
 
-app.get("/api/auth/me", (c) => {
-  const authStub = process.env.AUTH_STUB === "true"
-  if (!authStub) {
+// ── Auth middleware for protected routes ──
+
+async function authMiddleware(c: Parameters<Parameters<typeof app.use>[1]>[0], next: () => Promise<void>) {
+  // Dev stub mode
+  if (process.env.AUTH_STUB === "true") {
+    c.set("user", { id: "1", name: "Prof. Charleno", email: "charleno@gmail.com" })
+    return next()
+  }
+
+  const token = getCookie(c, "auth_token")
+  if (!token) {
     return c.json({ error: "Unauthorized" }, 401)
   }
-  return c.json({
-    id: "1",
-    name: "Prof. Charleno",
-    email: "charleno@gmail.com",
-  })
+
+  try {
+    const payload: JwtPayload = await verifyToken(token)
+    c.set("user", { id: payload.sub, name: payload.name, email: payload.email })
+    return next()
+  } catch {
+    return c.json({ error: "Unauthorized" }, 401)
+  }
+}
+
+// ── Public auth routes ──
+
+app.get("/api/auth/me", async (c) => {
+  // Dev stub mode
+  if (process.env.AUTH_STUB === "true") {
+    return c.json({ id: "1", name: "Prof. Charleno", email: "charleno@gmail.com" })
+  }
+
+  const token = getCookie(c, "auth_token")
+  if (!token) {
+    return c.json({ error: "Unauthorized" }, 401)
+  }
+
+  try {
+    const payload = await verifyToken(token)
+    return c.json({ id: payload.sub, name: payload.name, email: payload.email })
+  } catch {
+    return c.json({ error: "Unauthorized" }, 401)
+  }
 })
 
-app.post("/api/auth/login", (c) => {
+app.post("/api/auth/login", async (c) => {
+  // Will be implemented in auth task with bcrypt validation
   return c.json({ error: "Not implemented" }, 501)
 })
 
 app.post("/api/auth/logout", (c) => {
+  deleteCookie(c, "auth_token", { path: "/" })
   return c.json({ ok: true })
 })
+
+// ── Protected API routes ──
+
+app.use("/api/dashboard/*", authMiddleware)
+app.use("/api/students/*", authMiddleware)
+app.use("/api/evaluations/*", authMiddleware)
+app.use("/api/ponderations/*", authMiddleware)
 
 app.get("/api/dashboard/stats", (c) => {
   return c.json({
@@ -77,6 +131,15 @@ app.get("/api/dashboard/stats", (c) => {
     ],
   })
 })
+
+// ── Public API routes (student portal) ──
+
+app.get("/api/portal/:token", (c) => {
+  // Will be implemented in portal task
+  return c.json({ error: "Not implemented" }, 501)
+})
+
+// ── SPA static serving ──
 
 app.use("/*", serveStatic({ root: "./dist" }))
 app.get("/*", serveStatic({ path: "./dist/index.html" }))
