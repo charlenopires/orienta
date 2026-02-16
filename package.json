@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:all": "bun run dev & bun run dev:server",
     "build": "vite build",
     "dev:server": "bun --watch run src/server.ts",
     "server": "bun run src/server.ts",

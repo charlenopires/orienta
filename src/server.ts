@@ -52,6 +52,10 @@ async function authMiddleware(c: Parameters<Parameters<typeof app.use>[1]>[0], n
   }
 }
 
+// ── Health check ──
+
+app.get("/api/health", (c) => c.json({ ok: true }))
+
 // ── Public auth routes ──
 
 app.get("/api/auth/me", async (c) => {
@@ -184,6 +188,6 @@ app.use("/*", serveStatic({ root: "./dist" }))
 app.get("/*", serveStatic({ path: "./dist/index.html" }))
 
 export default {
-  port: 3000,
+  port: Number(process.env.PORT ?? 3000),
   fetch: app.fetch,
 }

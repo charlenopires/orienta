@@ -1,12 +1,16 @@
-app = "opc-pesquisa"
+app = "profcharleno"
 primary_region = "gru"
 
 [build]
 
+[env]
+  NODE_ENV = "production"
+  APP_URL = "https://profcharleno.fly.dev"
+
 [http_service]
   internal_port = 3000
   force_https = true
-  auto_stop_machines = "stop"
+  auto_stop_machines = true
   auto_start_machines = true
   min_machines_running = 0
 
@@ -20,6 +24,6 @@ primary_region = "gru"
     type = "http"
     interval = "30s"
     timeout = "5s"
-    path = "/api/auth/me"
+    path = "/api/health"
     method = "GET"
     grace_period = "10s"
