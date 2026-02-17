@@ -6,9 +6,14 @@ import { checklistSections } from "./checklist-data"
 
 const anthropic = new Anthropic()
 
+const DELAY_BETWEEN_ITEMS_MS = 15_000 // 15s between items to stay under rate limits
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 /**
  * Convert Google Drive sharing URLs to direct download URLs.
- * e.g. https://drive.google.com/file/d/FILE_ID/view?... → https://drive.google.com/uc?export=download&id=FILE_ID
  */
 function toDirectDownloadUrl(url: string): string {
   const driveMatch = url.match(/drive\.google\.com\/file\/d\/([^/]+)/)
@@ -20,7 +25,6 @@ function toDirectDownloadUrl(url: string): string {
 
 /**
  * Download a PDF from a URL and return it as base64.
- * Returns null if the download fails or the response is not a PDF.
  */
 async function downloadPdfAsBase64(url: string): Promise<string | null> {
   try {
@@ -35,7 +39,6 @@ async function downloadPdfAsBase64(url: string): Promise<string | null> {
       return null
     }
     const buffer = await res.arrayBuffer()
-    // Basic PDF magic bytes check
     const header = new Uint8Array(buffer.slice(0, 5))
     const isPdf = header[0] === 0x25 && header[1] === 0x50 && header[2] === 0x44 && header[3] === 0x46
     if (!isPdf) {
@@ -90,6 +93,32 @@ Responda APENAS em JSON válido, sem markdown, com a seguinte estrutura:
 }`
 }
 
+async function callClaudeWithRetry(
+  content: Anthropic.MessageCreateParams["messages"][0]["content"],
+  maxRetries = 3,
+): Promise<string> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const message = await anthropic.messages.create({
+        model: "claude-sonnet-4-5-20250929",
+        max_tokens: 1500,
+        messages: [{ role: "user", content }],
+      })
+      return message.content[0].type === "text" ? message.content[0].text : ""
+    } catch (err: unknown) {
+      const isRateLimit = err instanceof Error && err.message.includes("rate_limit")
+      if (isRateLimit && attempt < maxRetries) {
+        const waitSec = 30 * (attempt + 1) // 30s, 60s, 90s
+        console.warn(`[ai-tips] Rate limited, waiting ${waitSec}s before retry ${attempt + 1}/${maxRetries}`)
+        await sleep(waitSec * 1000)
+        continue
+      }
+      throw err
+    }
+  }
+  throw new Error("Max retries exceeded")
+}
+
 async function generateTipForItem(item: PonderationItemRow, pdfBase64: string | null): Promise<void> {
   const section = checklistSections.find((s) => s.id === item.sectionId)
   const sectionTitle = section?.title ?? item.sectionId
@@ -105,15 +134,9 @@ async function generateTipForItem(item: PonderationItemRow, pdfBase64: string | 
         ]
       : prompt
 
-    const message = await anthropic.messages.create({
-      model: "claude-sonnet-4-5-20250929",
-      max_tokens: 1500,
-      messages: [{ role: "user", content }],
-    })
-
-    let text = message.content[0].type === "text" ? message.content[0].text : ""
+    const rawText = await callClaudeWithRetry(content)
     // Strip markdown code block wrappers if present
-    text = text.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "").trim()
+    const text = rawText.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "").trim()
     const parsed = JSON.parse(text) as {
       diagnosis: string
       howToFix: string
@@ -130,13 +153,11 @@ async function generateTipForItem(item: PonderationItemRow, pdfBase64: string | 
   }
 
   try {
-    // Try with PDF first if available
     await tryGenerate(true)
   } catch (err) {
     if (pdfBase64) {
       console.warn(`[ai-tips] PDF call failed for item ${item.id}, retrying without PDF:`, err instanceof Error ? err.message : err)
       try {
-        // Retry without PDF
         await tryGenerate(false)
         return
       } catch (retryErr) {
@@ -159,7 +180,6 @@ async function generateTipForItem(item: PonderationItemRow, pdfBase64: string | 
 export async function generateAiTipsForPonderation(ponderationId: string): Promise<void> {
   console.log(`[ai-tips] Starting generation for ponderation ${ponderationId}`)
 
-  // Look up student's pdfUrl via ponderation → student
   const ponderation = await db
     .select({ studentId: opcPonderations.studentId })
     .from(opcPonderations)
@@ -205,10 +225,14 @@ export async function generateAiTipsForPonderation(ponderationId: string): Promi
 
   console.log(`[ai-tips] Processing ${items.length} items for ponderation ${ponderationId}`)
 
-  // Sequential processing to avoid rate limits
-  for (const item of items) {
-    await generateTipForItem(item, pdfBase64)
+  for (let i = 0; i < items.length; i++) {
+    await generateTipForItem(items[i], pdfBase64)
+    console.log(`[ai-tips] Completed item ${i + 1}/${items.length}`)
+    // Delay between items to respect rate limits (skip delay after last item)
+    if (i < items.length - 1) {
+      await sleep(DELAY_BETWEEN_ITEMS_MS)
+    }
   }
 
-  console.log(`[ai-tips] Completed for ponderation ${ponderationId}`)
+  console.log(`[ai-tips] Completed all ${items.length} items for ponderation ${ponderationId}`)
 }
