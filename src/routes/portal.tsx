@@ -29,11 +29,11 @@ function SectionAccordion({ sections }: { sections: PonderationDetailSection[] }
 
   return (
     <div className="space-y-3">
-      {/* Sections with issues - expanded by default */}
+      {/* Sections with issues - expanded by default, showing ALL items */}
       {sectionsWithNao.length > 0 && (
         <Accordion type="multiple" defaultValue={sectionsWithNao.map((s) => s.sectionId)}>
           {sectionsWithNao.map((section) => {
-            const naoItems = section.items.filter((i) => !i.answer)
+            const naoCount = section.items.filter((i) => !i.answer).length
             return (
               <AccordionItem
                 key={section.sectionId}
@@ -44,63 +44,70 @@ function SectionAccordion({ sections }: { sections: PonderationDetailSection[] }
                   <div className="flex items-center gap-3">
                     <span className="font-medium">{section.sectionTitle}</span>
                     <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
-                      {naoItems.length} ponto{naoItems.length > 1 ? "s" : ""} a melhorar
+                      {naoCount} ponto{naoCount > 1 ? "s" : ""} a melhorar
                     </Badge>
                   </div>
                 </AccordionTrigger>
                 <AccordionContent>
                   <div className="space-y-3">
-                    {naoItems.map((item) => (
-                      <div key={item.id} className="rounded-md border border-border p-3 space-y-2">
-                        <div className="flex items-start gap-2">
-                          <XCircle className="h-5 w-5 shrink-0 text-red-500 mt-0.5" />
-                          <p className="text-sm leading-relaxed">{item.question}</p>
+                    {section.items.map((item) =>
+                      item.answer ? (
+                        <div key={item.id} className="flex items-start gap-2 rounded-md border border-green-200 bg-green-50 p-3 dark:border-green-900 dark:bg-green-950/30">
+                          <CheckCircle2 className="h-5 w-5 shrink-0 text-green-600 mt-0.5" />
+                          <p className="text-sm leading-relaxed text-green-800 dark:text-green-300">{item.question}</p>
                         </div>
-
-                        {item.observation && (
-                          <div className="ml-7 rounded bg-muted/50 p-2">
-                            <p className="text-xs font-medium text-muted-foreground mb-1">Observação do orientador:</p>
-                            <p className="text-sm">{item.observation}</p>
+                      ) : (
+                        <div key={item.id} className="rounded-md border border-border p-3 space-y-2">
+                          <div className="flex items-start gap-2">
+                            <XCircle className="h-5 w-5 shrink-0 text-red-500 mt-0.5" />
+                            <p className="text-sm leading-relaxed">{item.question}</p>
                           </div>
-                        )}
 
-                        {item.aiTip && (
-                          <Card className="ml-7 py-3">
-                            <CardHeader className="pb-2 pt-0">
-                              <CardTitle className="flex items-center gap-2 text-sm">
-                                <Lightbulb className="h-4 w-4 text-yellow-500" />
-                                Dica de melhoria
-                              </CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-2 text-sm">
-                              <div>
-                                <p className="font-medium text-xs text-muted-foreground">Diagnóstico</p>
-                                <p>{item.aiTip.diagnosis}</p>
-                              </div>
-                              <div>
-                                <p className="font-medium text-xs text-muted-foreground">Como corrigir</p>
-                                <p>{item.aiTip.howToFix}</p>
-                              </div>
-                              {item.aiTip.practicalExample && (
+                          {item.observation && (
+                            <div className="ml-7 rounded bg-muted/50 p-2">
+                              <p className="text-xs font-medium text-muted-foreground mb-1">Observação do orientador:</p>
+                              <p className="text-sm">{item.observation}</p>
+                            </div>
+                          )}
+
+                          {item.aiTip && (
+                            <Card className="ml-7 py-3">
+                              <CardHeader className="pb-2 pt-0">
+                                <CardTitle className="flex items-center gap-2 text-sm">
+                                  <Lightbulb className="h-4 w-4 text-yellow-500" />
+                                  Dica de melhoria
+                                </CardTitle>
+                              </CardHeader>
+                              <CardContent className="space-y-2 text-sm">
                                 <div>
-                                  <p className="font-medium text-xs text-muted-foreground">Exemplo prático</p>
-                                  <p className="whitespace-pre-wrap rounded bg-muted p-2 text-xs">
-                                    {item.aiTip.practicalExample}
-                                  </p>
+                                  <p className="font-medium text-xs text-muted-foreground">Diagnóstico</p>
+                                  <p>{item.aiTip.diagnosis}</p>
                                 </div>
-                              )}
-                            </CardContent>
-                          </Card>
-                        )}
+                                <div>
+                                  <p className="font-medium text-xs text-muted-foreground">Como corrigir</p>
+                                  <p>{item.aiTip.howToFix}</p>
+                                </div>
+                                {item.aiTip.practicalExample && (
+                                  <div>
+                                    <p className="font-medium text-xs text-muted-foreground">Exemplo prático</p>
+                                    <p className="whitespace-pre-wrap rounded bg-muted p-2 text-xs">
+                                      {item.aiTip.practicalExample}
+                                    </p>
+                                  </div>
+                                )}
+                              </CardContent>
+                            </Card>
+                          )}
 
-                        {!item.aiTip && (
-                          <div className="ml-7 flex items-center gap-2 text-xs text-muted-foreground">
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                            Dica em processamento...
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                          {!item.aiTip && (
+                            <div className="ml-7 flex items-center gap-2 text-xs text-muted-foreground">
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                              Dica em processamento...
+                            </div>
+                          )}
+                        </div>
+                      )
+                    )}
                   </div>
                 </AccordionContent>
               </AccordionItem>

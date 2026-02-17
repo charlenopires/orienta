@@ -22,6 +22,9 @@ export function ChecklistItem({
 
   return (
     <div className="space-y-2 rounded-md border border-border p-3">
+      <p className="text-xs text-muted-foreground leading-relaxed italic">
+        {item.hint}
+      </p>
       <div className="flex items-start justify-between gap-4">
         <p className="flex-1 text-sm leading-relaxed">{item.question}</p>
         <RadioGroup
