@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useRef } from "react"
 import { useLoaderData, useSearchParams, Link } from "react-router"
 import { toast } from "sonner"
-import { ChevronLeft, ChevronRight, Save, CheckCircle2, Plus, ArrowLeft, Eye } from "lucide-react"
+import { ChevronLeft, ChevronRight, Save, CheckCircle2, Plus, ArrowLeft, Eye, Share2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
@@ -131,11 +131,27 @@ function PonderationsList({
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="sm" asChild>
-                      <Link to={`/ponderacoes/${p.id}`}>
-                        <Eye className="h-4 w-4" />
-                      </Link>
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="sm" asChild>
+                        <Link to={`/ponderacoes/${p.id}`}>
+                          <Eye className="h-4 w-4" />
+                        </Link>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          const url = `${window.location.origin}/ponderacoes/${p.id}`
+                          navigator.clipboard.writeText(url).then(
+                            () => toast.success("Link copiado!"),
+                            () => toast.error("Erro ao copiar link"),
+                          )
+                        }}
+                        title="Copiar link público"
+                      >
+                        <Share2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
