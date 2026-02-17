@@ -4,9 +4,12 @@ dist/
 .env.local
 *.tsbuildinfo
 
-# Claude Code
-.claude/
-CLAUDE.md
+# Claude Code (local settings only)
+.claude/settings.local.json
 
-# CWA
-.cwa/
+# CWA (local database and logs)
+.cwa/cwa.db
+.cwa/cwa.db-shm
+.cwa/cwa.db-wal
+.cwa/serve.log
+.cwa/docker/.env
