@@ -6,6 +6,9 @@ import { checklistSections } from "./checklist-data"
 
 const anthropic = new Anthropic()
 
+// Global queue to serialize AI tip generation (avoids concurrent rate limit collisions)
+let generationQueue: Promise<void> = Promise.resolve()
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
@@ -132,7 +135,17 @@ async function callClaudeWithRetry(
   throw new Error("Max retries exceeded")
 }
 
-export async function generateAiTipsForPonderation(ponderationId: string): Promise<void> {
+export function generateAiTipsForPonderation(ponderationId: string): Promise<void> {
+  // Queue ensures only one ponderation generates at a time (avoids rate limit collisions)
+  generationQueue = generationQueue
+    .then(() => _generateAiTipsForPonderation(ponderationId))
+    .catch((err) => {
+      console.error(`[ai-tips] Queued generation failed for ${ponderationId}:`, err)
+    })
+  return generationQueue
+}
+
+async function _generateAiTipsForPonderation(ponderationId: string): Promise<void> {
   console.log(`[ai-tips] Starting generation for ponderation ${ponderationId}`)
 
   const ponderation = await db
