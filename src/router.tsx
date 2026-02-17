@@ -16,6 +16,11 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <LoginPage /> },
       { path: "aluno/:token", element: <PortalPage /> },
+      {
+        path: "ponderacoes/:id",
+        element: <PonderacaoDetalhePage />,
+        loader: ponderacaoDetalheLoader,
+      },
     ],
   },
   {
@@ -39,12 +44,6 @@ export const router = createBrowserRouter([
         element: <AvaliacoesPage />,
         loader: avaliacoesLoader,
         handle: { title: "Avaliações" },
-      },
-      {
-        path: "ponderacoes/:id",
-        element: <PonderacaoDetalhePage />,
-        loader: ponderacaoDetalheLoader,
-        handle: { title: "Detalhe da Ponderação" },
       },
       {
         path: "historico",

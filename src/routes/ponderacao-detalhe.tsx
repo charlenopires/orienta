@@ -1,6 +1,5 @@
-import { useLoaderData, Link } from "react-router"
-import { ArrowLeft, CheckCircle2, XCircle, Lightbulb, Loader2 } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { useLoaderData } from "react-router"
+import { CheckCircle2, XCircle, Lightbulb, Loader2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -12,7 +11,7 @@ import {
 import type { PonderationDetail } from "@/lib/types"
 
 export async function ponderacaoDetalheLoader({ params }: { params: { id: string } }): Promise<PonderationDetail> {
-  const res = await fetch(`/api/ponderations/${params.id}`, { credentials: "include" })
+  const res = await fetch(`/api/public/ponderations/${params.id}`)
   if (!res.ok) throw new Error("Failed to load ponderation")
   return res.json()
 }
@@ -34,13 +33,6 @@ export function PonderacaoDetalhePage() {
 
   return (
     <div className="space-y-6 max-w-4xl">
-      <Button variant="ghost" asChild>
-        <Link to="/avaliacoes">
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Voltar para avaliações
-        </Link>
-      </Button>
-
       {/* Header */}
       <div className="space-y-2">
         <div className="flex items-center gap-3">
