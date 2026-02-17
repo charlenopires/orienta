@@ -111,7 +111,9 @@ async function generateTipForItem(item: PonderationItemRow, pdfBase64: string | 
       messages: [{ role: "user", content }],
     })
 
-    const text = message.content[0].type === "text" ? message.content[0].text : ""
+    let text = message.content[0].type === "text" ? message.content[0].text : ""
+    // Strip markdown code block wrappers if present
+    text = text.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "").trim()
     const parsed = JSON.parse(text) as {
       diagnosis: string
       howToFix: string
