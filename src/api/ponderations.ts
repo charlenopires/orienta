@@ -140,7 +140,7 @@ ponderations.get("/:id", async (c) => {
   })
 })
 
-// POST /api/ponderations/:id/regenerate-tips — delete existing tips and regenerate
+// POST /api/ponderations/:id/regenerate-tips — generate tips for items that don't have them yet
 ponderations.post("/:id/regenerate-tips", async (c) => {
   const id = c.req.param("id")
 
@@ -153,28 +153,12 @@ ponderations.post("/:id/regenerate-tips", async (c) => {
     return c.json({ error: "Ponderação não encontrada" }, 404)
   }
 
-  // Get all ponderation item IDs to delete their tips
-  const items = await db
-    .select({ id: opcPonderationItems.id })
-    .from(opcPonderationItems)
-    .where(eq(opcPonderationItems.ponderationId, id))
-
-  if (items.length === 0) {
-    return c.json({ error: "Nenhum item para gerar dicas" }, 400)
-  }
-
-  // Delete existing tips
-  const itemIds = items.map((i) => i.id)
-  await db.delete(opcAiTips).where(inArray(opcAiTips.ponderationItemId, itemIds))
-
-  console.log(`[ai-tips] Deleted existing tips for ponderation ${id}, regenerating...`)
-
-  // Fire-and-forget regeneration
+  // Fire-and-forget — the function itself skips items that already have tips
   generateAiTipsForPonderation(id).catch((err) => {
     console.error("[ai-tips] Regeneration failed:", err)
   })
 
-  return c.json({ message: "Regeneração de dicas iniciada", itemCount: items.length })
+  return c.json({ message: "Geração de dicas pendentes iniciada" })
 })
 
 export { ponderations }
